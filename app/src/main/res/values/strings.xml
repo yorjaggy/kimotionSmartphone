@@ -1,0 +1,12 @@
+<resources>
+    <string name="app_name">kimotionSmartphone</string>
+
+    <string name="buttonStart">Start capture</string>
+    <string name="buttonStop">Stop capture</string>
+    <string name="buttonDelete">Delete capture</string>
+    <string name="buttonSend">Send capture</string>
+    <string name="buttonCheckState">Check Acce</string>
+
+    <string name="action_settings">Settings</string>
+
+</resources>
