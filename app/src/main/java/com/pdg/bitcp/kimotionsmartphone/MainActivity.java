@@ -1,28 +1,32 @@
 package com.pdg.bitcp.kimotionsmartphone;
 
-import android.content.Context;
+import android.app.Activity;
+import android.content.pm.ActivityInfo;
 import android.hardware.Sensor;
 import android.hardware.SensorEvent;
 import android.hardware.SensorEventListener;
 import android.hardware.SensorManager;
 import android.os.Bundle;
-import android.support.design.widget.FloatingActionButton;
-import android.support.design.widget.Snackbar;
-import android.support.v7.app.AppCompatActivity;
-import android.support.v7.widget.Toolbar;
 import android.view.View;
 import android.view.Menu;
 import android.view.MenuItem;
 import android.widget.TextView;
+import android.widget.Toast;
 
-public class MainActivity extends AppCompatActivity implements SensorEventListener{
+import java.util.List;
+
+public class MainActivity extends Activity implements SensorEventListener{
+
+    private long last_update = 0, last_movement = 0;
+    private float prevX = 0, prevY = 0, prevZ = 0;
+    private float curX = 0, curY = 0, curZ = 0;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
-        Toolbar toolbar = (Toolbar) findViewById(R.id.toolbar);
-        setSupportActionBar(toolbar);
+        this.setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_PORTRAIT);
+
 
         /*FloatingActionButton fab = (FloatingActionButton) findViewById(R.id.fab);
         fab.setOnClickListener(new View.OnClickListener() {
@@ -32,10 +36,6 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
                         .setAction("Action", null).show();
             }
         });*/
-        getSupportActionBar().setDisplayHomeAsUpEnabled(true);
-
-
-
     }
 
     @Override
@@ -60,12 +60,19 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
         return super.onOptionsItemSelected(item);
     }
 
-    public void startCapture(View view){
-
+    public void onResume(){
+        super.onResume();
+        SensorManager sm = (SensorManager) getSystemService(SENSOR_SERVICE);
+        List<Sensor> sensors = sm.getSensorList(Sensor.TYPE_ACCELEROMETER);
+        if (sensors.size() > 0) {
+            sm.registerListener(this, sensors.get(0), SensorManager.SENSOR_DELAY_GAME);
+        }
     }
 
-    public void stopCapture(View view){
-
+    public void onStop(){
+        SensorManager sm = (SensorManager) getSystemService(SENSOR_SERVICE);
+        sm.unregisterListener(this);
+        super.onStop();
     }
 
     public void deleteCapture(View view){
@@ -76,23 +83,60 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
 
     }
 
-    public void checkState(View view){
-        TextView estadoAcelerometro = (TextView) findViewById(R.id.state);
+    /*public void checkState(){
+        TextView stateAcelerometer = (TextView) findViewById(R.id.state);
 
         SensorManager manager= (SensorManager) getSystemService(Context.SENSOR_SERVICE);
         if (manager.getSensorList(Sensor.TYPE_ACCELEROMETER).size()==0){
-            estadoAcelerometro.setText("No hay acelerometro");
+            stateAcelerometer.setText("No hay acelerometro");
         }else {
             Sensor acelerometer = manager.getSensorList(Sensor.TYPE_ACCELEROMETER).get(0);
             if (!manager.registerListener(this, acelerometer, SensorManager.SENSOR_DELAY_GAME)) {
-                estadoAcelerometro.setText("No se ha podido registrar el sensor listener");
+                stateAcelerometer.setText("No se ha podido registrar el sensor listener");
             }
         }
-    }
+    }*/
 
     @Override
     public void onSensorChanged(SensorEvent event) {
+        synchronized (this) {
 
+            long current_time = event.timestamp;
+
+            curX = event.values[0];
+            curY = event.values[1];
+            curZ = event.values[2];
+
+
+            if (prevX == 0 && prevY == 0 && prevZ == 0) {
+                last_update = current_time;
+                last_movement = current_time;
+                prevX = curX;
+                prevY = curY;
+                prevZ = curZ;
+            }
+
+            long time_difference = current_time - last_update;
+            if (time_difference > 0) {
+                float movement = Math.abs((curX + curY + curZ) - (prevX - prevY - prevZ)) / time_difference;
+
+                int limit = 1500;
+                float min_movement = 1E-6f;
+                if (movement > min_movement) {
+                    if (current_time - last_movement >= limit) {
+                        Toast.makeText(getApplicationContext(), "Hay movimiento de " + movement, Toast.LENGTH_SHORT).show();
+                    }
+                    last_movement = current_time;
+                }
+                prevX = curX;
+                prevY = curY;
+                prevZ = curZ;
+                last_update = current_time;
+            }
+            ((TextView) findViewById(R.id.axisX)).setText("X Axis: " + curX);
+            ((TextView) findViewById(R.id.axisY)).setText("Y Axis: " + curY);
+            ((TextView) findViewById(R.id.axisZ)).setText("Z Axis: " + curZ);
+        }
     }
 
     @Override
